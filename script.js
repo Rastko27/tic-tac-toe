@@ -1,19 +1,11 @@
 const gameboard = (function() {
-    let spaces = [null,null,null,null,null,null,null,null,null];
-    
-    function displayBoardStart() {
-        console.log("[0] [1] [2]\n[3] [4] [5]\n[6] [7] [8]");
-    }
-
-    function displayCurrentBoard() {
-        console.log("[" + gameboard.spaces[0] + "] [" + gameboard.spaces[1] + "] [" + gameboard.spaces[2] + "]\n[" + gameboard.spaces[3] + "] [" + gameboard.spaces[4] + "] [" + gameboard.spaces[5] + "]\n[" + gameboard.spaces[6] + "] [" + gameboard.spaces[7] + "] [" + gameboard.spaces[8] + "]");
-    }
+    let spaces = [null, null, null, null, null, null, null, null, null];
 
     function refreshBoard() {
-        spaces = [null,null,null,null,null,null,null,null,null];
+        spaces = [null, null, null, null, null, null, null, null, null];
     }
 
-    return{ spaces, displayBoardStart, displayCurrentBoard, refreshBoard };
+    return { spaces, refreshBoard };
 })();
 
 function createPlayer(name) {
@@ -37,102 +29,111 @@ function createPlayer(name) {
 const player1 = createPlayer("one");
 const player2 = createPlayer("two");
 
-const playGame = (function() {
+const playDOM = (function() {
+    let currentPlayer;
+    let gameboardClickCounter = 0;
+    let gameboardWrapper = document.getElementById('gameboard-wrapper');
+
+    function currentPlayerSwap() {
+        currentPlayer = currentPlayer === player1 ? player2 : player1;
+    }
 
     function getChoice(player) {
-        player.currentChoice = parseInt(prompt("Player " + player.name + " pick:"));
-        if(gameboard.spaces[player.currentChoice] === null) {
+        if (gameboard.spaces[player.currentChoice] === null) {
             player.choices.push(player.currentChoice);
-
-            if(player.name === "one") {
-                gameboard.spaces[player.currentChoice] = "X";
-            }
-            else if(player.name === "two") {
-                gameboard.spaces[player.currentChoice] = "O";
-            }
-        }
-        else{
-            console.log("That space has already been marked, please choose another one.");
-            getChoice(player);
+            gameboard.spaces[player.currentChoice] = player.name === "one" ? "X" : "O";
         }
     }
 
     function checkResult() {
         const winningCombinations = [
-            [0, 1, 2], // Top row
-            [3, 4, 5], // Middle row
-            [6, 7, 8], // Bottom row
-            [0, 3, 6], // Left column
-            [1, 4, 7], // Middle column
-            [2, 5, 8], // Right column
-            [0, 4, 8], // Top-left to bottom-right diagonal
-            [2, 4, 6]  // Top-right to bottom-left diagonal
-        ]
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6]
+        ];
 
-        function checkWinningCombination(playerChoices, winningCombinations) {
-            return winningCombinations.some((combination) => combination.every((number) => 
-                playerChoices.includes(number)));
+        function checkWinningCombination(playerChoices) {
+            return winningCombinations.some(combination =>
+                combination.every(number => playerChoices.includes(number))
+            );
         }
 
-        let usedSpaces = 0;
+        let usedSpaces = gameboard.spaces.filter(space => space !== null).length;
+        let player1Result = checkWinningCombination(player1.choices);
+        let player2Result = checkWinningCombination(player2.choices);
 
-        for(let i=0; i<9; i++) {
-            if(gameboard.spaces[i] !== null) {
-                usedSpaces++;
-            }
-        }
-
-        let sortedPlayer1Choices = player1.choices.slice().sort((a, b) => a - b);
-        let sortedPlayer2Choices = player2.choices.slice().sort((a, b) => a - b);
-
-        let player1Result = checkWinningCombination(sortedPlayer1Choices, winningCombinations);
-        let player2Result = checkWinningCombination(sortedPlayer2Choices, winningCombinations);
-
-        if(usedSpaces === 9) {
-            return "Draw";
-        }
-        else if(player1Result === true) {
-            return 1;
-        }
-        else if(player2Result === true) {
-            return 2;
-        }
-        else {
-            return 0;
-        }
+        if (usedSpaces === 9) return "Draw";
+        if (player1Result) return 1;
+        if (player2Result) return 2;
+        return 0;
     }
 
-    function play() {
+    function handleSpaceClick(spaceId) {
+        if (gameboardClickCounter > 0 && (checkResult() === 1 || checkResult() === 2 || checkResult() === "Draw")) {
+            resetGame();
+            displayBoardDOM();
+            return;
+        }
+
+        if (gameboardClickCounter === 0) {
+            resetGame();
+            displayBoardDOM();
+            currentPlayer = player1;
+        }
+
+        gameboardClickCounter++;
+
+        if (gameboard.spaces[spaceId] === null) {
+            currentPlayer.currentChoice = parseInt(spaceId);
+            getChoice(currentPlayer);
+            displayBoardDOM();
+
+            let result = checkResult();
+            if (result === "Draw") {
+                alert("It's a draw!");
+            } else if (result === 1) {
+                player1.scoreUp();
+                alert("Player 1 wins!");
+            } else if (result === 2) {
+                player2.scoreUp();
+                alert("Player 2 wins!");
+            } else {
+                currentPlayerSwap();
+            }
+        } else {
+            alert("That space has already been marked, please choose another one.");
+        }
+
+        updateScoreboard();
+    }
+
+    function resetGame() {
         player1.resetChoices();
         player2.resetChoices();
         gameboard.refreshBoard();
-        gameboard.displayBoardStart();
-        
-        while(true) {
-            getChoice(player1);
-            gameboard.displayCurrentBoard();
-            if(checkResult() !== 0) break;
-
-            getChoice(player2);
-            gameboard.displayCurrentBoard();
-            if(checkResult() !== 0) break;
-        }
-
-        let result = checkResult();
-
-        if(result === "Draw") {
-            console.log("It's a draw!");
-        }
-        else if(result === 1) {
-            console.log("Player 1 wins!");
-            player1.scoreUp();
-        }
-        else if(result === 2) {
-            console.log("Player 2 wins!");
-            player2.scoreUp();
-        }
-        console.log("Score: " + player1.returnScore() + ":" + player2.returnScore());
+        gameboardClickCounter = 0;
+        currentPlayer = player1;
     }
 
-    return{ play };
+    function displayBoardDOM() {
+        gameboardWrapper.innerHTML = "";
+
+        for (let i = 0; i < 9; i++) {
+            let currentSpace = document.createElement("div");
+            currentSpace.textContent = gameboard.spaces[i] === null ? " " : gameboard.spaces[i];
+            currentSpace.id = i;
+            gameboardWrapper.appendChild(currentSpace);
+
+            currentSpace.addEventListener("click", () => handleSpaceClick(currentSpace.id));
+        }
+    }
+
+    function updateScoreboard() {
+        const scoreboard = document.getElementById('scoreboard');
+        scoreboard.textContent = `Score: Player 1 (${player1.returnScore()}) - Player 2 (${player2.returnScore()})`;
+    }
+
+    return { displayBoardDOM };
 })();
+
+playDOM.displayBoardDOM();
