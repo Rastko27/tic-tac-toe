@@ -2,7 +2,9 @@ const gameboard = (function() {
     let spaces = [null, null, null, null, null, null, null, null, null];
 
     function refreshBoard() {
-        spaces = [null, null, null, null, null, null, null, null, null];
+        for(let i=0; i<9; i++) {
+            spaces[i] = null;
+        }
     }
 
     return { spaces, refreshBoard };
@@ -19,18 +21,14 @@ function createPlayer(name) {
         return score;
     }
 
-    function resetChoices() {
-        choices = [];
-    }
-
-    return { name, currentChoice, choices, scoreUp, returnScore, resetChoices };
+    return { name, currentChoice, choices, scoreUp, returnScore };
 }
 
 const player1 = createPlayer("one");
 const player2 = createPlayer("two");
 
 const playDOM = (function() {
-    let currentPlayer;
+    let currentPlayer = player1;
     let gameboardClickCounter = 0;
     let gameboardWrapper = document.getElementById('gameboard-wrapper');
 
@@ -41,7 +39,7 @@ const playDOM = (function() {
     function getChoice(player) {
         if (gameboard.spaces[player.currentChoice] === null) {
             player.choices.push(player.currentChoice);
-            gameboard.spaces[player.currentChoice] = player.name === "one" ? "X" : "O";
+            gameboard.spaces[player.currentChoice] = player.name === player1.name ? "X" : "O";
         }
     }
 
@@ -69,20 +67,6 @@ const playDOM = (function() {
     }
 
     function handleSpaceClick(spaceId) {
-        if (gameboardClickCounter > 0 && (checkResult() === 1 || checkResult() === 2 || checkResult() === "Draw")) {
-            resetGame();
-            displayBoardDOM();
-            return;
-        }
-
-        if (gameboardClickCounter === 0) {
-            resetGame();
-            displayBoardDOM();
-            currentPlayer = player1;
-        }
-
-        gameboardClickCounter++;
-
         if (gameboard.spaces[spaceId] === null) {
             currentPlayer.currentChoice = parseInt(spaceId);
             getChoice(currentPlayer);
@@ -91,12 +75,15 @@ const playDOM = (function() {
             let result = checkResult();
             if (result === "Draw") {
                 alert("It's a draw!");
+                gameboardWrapper.style.pointerEvents = "none";
             } else if (result === 1) {
                 player1.scoreUp();
                 alert("Player 1 wins!");
+                gameboardWrapper.style.pointerEvents = "none";
             } else if (result === 2) {
                 player2.scoreUp();
                 alert("Player 2 wins!");
+                gameboardWrapper.style.pointerEvents = "none";
             } else {
                 currentPlayerSwap();
             }
@@ -107,13 +94,18 @@ const playDOM = (function() {
         updateScoreboard();
     }
 
-    function resetGame() {
-        player1.resetChoices();
-        player2.resetChoices();
+    function newGame() {
+        player1.choices = [];
+        player2.choices = [];
         gameboard.refreshBoard();
-        gameboardClickCounter = 0;
         currentPlayer = player1;
+        gameboardWrapper.style.pointerEvents = "auto";
+        displayBoardDOM();
     }
+
+    let newGameButton = document.getElementById('new');
+
+    newGameButton.addEventListener("click", newGame);
 
     function displayBoardDOM() {
         gameboardWrapper.innerHTML = "";
@@ -123,7 +115,7 @@ const playDOM = (function() {
             currentSpace.textContent = gameboard.spaces[i] === null ? " " : gameboard.spaces[i];
             currentSpace.id = i;
             gameboardWrapper.appendChild(currentSpace);
-
+            currentSpace.removeEventListener("click", handleSpaceClick)
             currentSpace.addEventListener("click", () => handleSpaceClick(currentSpace.id));
         }
     }
@@ -133,7 +125,8 @@ const playDOM = (function() {
         scoreboard.textContent = `Score: Player 1 (${player1.returnScore()}) - Player 2 (${player2.returnScore()})`;
     }
 
-    return { displayBoardDOM };
+    return { displayBoardDOM, updateScoreboard, newGame };
 })();
 
+playDOM.updateScoreboard();
 playDOM.displayBoardDOM();
